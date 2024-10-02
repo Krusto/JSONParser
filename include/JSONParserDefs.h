@@ -39,6 +39,7 @@
 /***********************************************************************************************************************
 Includes
 ***********************************************************************************************************************/
+#include "DString.h"
 #include "STDTypes.h"
 
 /***********************************************************************************************************************
@@ -55,11 +56,72 @@ typedef enum
     JSON_PARSE_RESULT_FILE_NOT_FOUND
 } JSONParserResultT;
 
+typedef enum
+{
+    UNICODE_TOKEN_NONE = 0,
+    UNICODE_TOKEN_LEFT_SQUARE_BRACKET,
+    UNICODE_TOKEN_RIGHT_SQUARE_BRACKET,
+    UNICODE_TOKEN_LEFT_CURLY_BRACKET,
+    UNICODE_TOKEN_RIGHT_CURLY_BRACKET,
+    UNICODE_TOKEN_COLON,
+    UNICODE_TOKEN_COMMA,
+    UNICODE_TOKEN_QUOTATION_MARK,
+    UNICODE_TOKEN_TRUE,
+    UNICODE_TOKEN_FALSE,
+    UNICODE_TOKEN_NULL,
+} UnicodeTokenT;
+
+typedef enum
+{
+    NODE_TYPE_NONE = 0,
+    NODE_TYPE_OBJECT,
+    NODE_TYPE_OBJECT_ELEMENT,
+    NODE_TYPE_ARRAY,
+    NODE_TYPE_NUMBER,
+    NODE_TYPE_STRING,
+    NODE_TYPE_TRUE,
+    NODE_TYPE_FALSE,
+    NODE_TYPE_NULL,
+} ValueTypeT;
+
+typedef struct {
+    ValueTypeT valueType;
+    uint32_t elementSize;
+    void* data;
+    BOOL isValue;
+} NodeT;
+
+typedef struct {
+    ValueTypeT valueType;
+    uint32_t elementSize;
+    DStringT* value;
+} NodeStringT;
+
+typedef struct {
+    ValueTypeT valueType;
+    uint32_t elementSize;
+    DArrayT* data;
+} NodeArrayT;
+
+typedef struct {
+    ValueTypeT valueType;
+    uint32_t elementSize;
+    NodeT* value;
+    NodeStringT* key;
+} NodeObjectElementT;
+
+typedef struct {
+    ValueTypeT valueType;
+    uint32_t elementSize;
+    DArrayT* elements;
+} NodeObjectT;
+
 typedef struct {
     const int8_t* buffer;
     size_t length;
     uint32_t offset;
-} JSONParserT;
 
+    NodeT* data;
+} JSONParserT;
 
 #endif// JSONPARSER_DEFS_HEADER
