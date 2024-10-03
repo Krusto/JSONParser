@@ -1,3 +1,3 @@
 [submodule "vendor/CUtils"]
 	path = vendor/CUtils
-	url = http://github.com/Krusto/CUtils
+	url = https://github.com/Krusto/CUtils

@@ -69,6 +69,7 @@ typedef enum
     UNICODE_TOKEN_TRUE,
     UNICODE_TOKEN_FALSE,
     UNICODE_TOKEN_NULL,
+    UNICODE_TOKEN_BACK_SLASH
 } UnicodeTokenT;
 
 typedef enum
@@ -86,15 +87,14 @@ typedef enum
 
 typedef struct {
     ValueTypeT valueType;
-    uint32_t elementSize;
     void* data;
-    BOOL isValue;
+    void* dummy;
 } NodeT;
 
 typedef struct {
     ValueTypeT valueType;
-    uint32_t elementSize;
     DStringT* value;
+    void* dummy;
 } NodeStringT;
 
 typedef struct {
@@ -105,14 +105,12 @@ typedef struct {
 
 typedef struct {
     ValueTypeT valueType;
-    uint32_t elementSize;
-    NodeT* value;
     NodeStringT* key;
+    NodeT* value;
 } NodeObjectElementT;
 
 typedef struct {
     ValueTypeT valueType;
-    uint32_t elementSize;
     DArrayT* elements;
 } NodeObjectT;
 
