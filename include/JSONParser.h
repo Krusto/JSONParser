@@ -305,6 +305,8 @@ NodeObjectT* parse_object(JSONParserT* parser)
 
         token = get_current_token(parser);
         if (token == UNICODE_TOKEN_COMMA) { parser->offset += current_char_length(parser); }
+        skip_spaces(parser);
+        token = get_current_token(parser);
     }
     move_to_next_char(parser);
 
