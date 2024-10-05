@@ -83,17 +83,17 @@ static const char* tokens_str[] = {"UNICODE_TOKEN_NONE",
 /***********************************************************************************************************************
 Static function declarations
 ***********************************************************************************************************************/
-NodeT* ParseString(JSONParserT* parser);
-NodeT* ParseArray(JSONParserT* parser);
-NodeT* ParseObject(JSONParserT* parser);
-NodeT* ParseValue(JSONParserT* parser);
+NodeStringT* parse_string(JSONParserT* parser);
+NodeArrayT* parse_array(JSONParserT* parser);
+NodeObjectT* parse_object(JSONParserT* parser);
+NodeT* parse_value(JSONParserT* parser);
 wchar_t current_unicode_char(JSONParserT* parser);
 uint8_t current_char_length(JSONParserT* parser);
 BOOL is_char_space(wchar_t current_unicode_char);
 UnicodeTokenT get_token(wchar_t unicodeChar);
 void move_to_next_char(JSONParserT* parser);
 
-void PrintNode(NodeT* node)
+void print_node(NodeT* node)
 {
     switch (node->valueType)
     {
@@ -103,7 +103,7 @@ void PrintNode(NodeT* node)
             for (size_t i = 0; i < darr_length(elements); i++)
             {
                 NodeT* element = (NodeT*) *(long long*) darr_get_ptr(elements, i);
-                PrintNode(element);
+                print_node(element);
             }
 
             break;
@@ -111,7 +111,7 @@ void PrintNode(NodeT* node)
         case NODE_TYPE_ARRAY:
             for (size_t i = 0; i < darr_length(((NodeArrayT*) node)->data); i++)
             {
-                PrintNode((NodeT*) *(long long*) darr_get_ptr(((NodeArrayT*) node)->data, i));
+                print_node((NodeT*) *(long long*) darr_get_ptr(((NodeArrayT*) node)->data, i));
             }
             break;
         case NODE_TYPE_OBJECT_ELEMENT: {
@@ -119,7 +119,7 @@ void PrintNode(NodeT* node)
             NodeStringT* key = object->key;
             DStringT* keyStr = key->value;
             wprintf(L"Key \"%s\"\n", keyStr->data);
-            PrintNode(object->value);
+            print_node(object->value);
             break;
         }
         case NODE_TYPE_STRING:
@@ -131,15 +131,13 @@ void PrintNode(NodeT* node)
 /***********************************************************************************************************************
 Static function definitions
 ***********************************************************************************************************************/
-BOOL is_char_space(wchar_t unicodeChar)
-{
-    return (unicodeChar == UNICODE_TABULATION || unicodeChar == UNICODE_LINE_FEED ||
-            unicodeChar == UNICODE_CARRIAGE_RETURN || unicodeChar == UNICODE_SPACE);
-}
-
 void move_to_next_char(JSONParserT* parser) { parser->offset += current_char_length(parser); }
 
 uint8_t current_char_length(JSONParserT* parser) { return utf8_get_char_length(parser->buffer[parser->offset]); }
+
+wchar_t current_unicode_char(JSONParserT* parser) { return utf8_to_unicode(&parser->buffer[parser->offset]); }
+
+UnicodeTokenT get_current_token(JSONParserT* parser) { return get_token(current_unicode_char(parser)); }
 
 UnicodeTokenT get_token(wchar_t unicodeChar)
 {
@@ -184,26 +182,25 @@ UnicodeTokenT get_token(wchar_t unicodeChar)
     return token;
 }
 
-wchar_t current_unicode_char(JSONParserT* parser) { return utf8_to_unicode(&parser->buffer[parser->offset]); }
-
-UnicodeTokenT get_current_token(JSONParserT* parser) { return get_token(current_unicode_char(parser)); }
+BOOL is_char_space(wchar_t unicodeChar)
+{
+    return (unicodeChar == UNICODE_TABULATION || unicodeChar == UNICODE_LINE_FEED ||
+            unicodeChar == UNICODE_CARRIAGE_RETURN || unicodeChar == UNICODE_SPACE);
+}
 
 void skip_spaces(JSONParserT* parser)
 {
-
-    BOOL first = TRUE;
     wchar_t currentChar = UNICODE_TABULATION;
 
     while (is_char_space(currentChar))
     {
-        if (TRUE == first) { first = FALSE; }
         currentChar = current_unicode_char(parser);
 
         if (is_char_space(currentChar)) { parser->offset += current_char_length(parser); }
     }
 }
 
-NodeT* ParseValue(JSONParserT* parser)
+NodeT* parse_value(JSONParserT* parser)
 {
     skip_spaces(parser);
     UnicodeTokenT token = get_current_token(parser);
@@ -213,22 +210,31 @@ NodeT* ParseValue(JSONParserT* parser)
     switch (token)
     {
         case UNICODE_TOKEN_LEFT_CURLY_BRACKET:
-            result = ParseObject(parser);
+            result = (NodeT*) parse_object(parser);
             break;
         case UNICODE_TOKEN_LEFT_SQUARE_BRACKET:
-            result = ParseArray(parser);
+            result = (NodeT*) parse_array(parser);
             break;
         case UNICODE_TOKEN_QUOTATION_MARK: {
-            result = ParseString(parser);
+            result = (NodeT*) parse_string(parser);
         }
         break;
     }
     return result;
 }
 
-NodeT* ParseString(JSONParserT* parser)
+NodeStringT* create_node_string(const int8_t* data, size_t length)
 {
-    NodeT* result = NULL;
+    DStringT* dStrResult = str_create(data, length);
+    NodeStringT* strNode = (NodeStringT*) CMALLOC(sizeof(NodeStringT));
+    strNode->valueType = NODE_TYPE_STRING;
+    strNode->value = dStrResult;
+    return strNode;
+}
+
+NodeStringT* parse_string(JSONParserT* parser)
+{
+    NodeStringT* result = NULL;
 
     UnicodeTokenT token = get_current_token(parser);
     if (token == UNICODE_TOKEN_QUOTATION_MARK)
@@ -250,48 +256,36 @@ NodeT* ParseString(JSONParserT* parser)
         }
         length -= 1;
 
-        DStringT* dStrResult = str_create(data, length);
-        NodeStringT* strNode = (NodeStringT*) malloc(sizeof(NodeStringT));
-        strNode->valueType = NODE_TYPE_STRING;
-        strNode->value = dStrResult;
-        result = strNode;
+        result = create_node_string(data, length);
 
-        wprintf(L"Value \"%s\"\n", strNode->value->data);
+        wprintf(L"Value \"%s\"\n", result->value->data);
     }
 
     return result;
 }
 
-NodeT* ParseArray(JSONParserT* parser)
+NodeArrayT* create_node_array()
 {
     NodeArrayT* result = NULL;
+    result = (NodeArrayT*) CMALLOC(sizeof(NodeArrayT*));
+    result->valueType = NODE_TYPE_ARRAY;
+    result->elementSize = sizeof(NodeT*);
+    result->data = darr_create_generic(result->elementSize);
+    return result;
+}
 
+NodeArrayT* parse_array(JSONParserT* parser)
+{
     move_to_next_char(parser);
-    UnicodeTokenT token = UNICODE_TOKEN_FALSE;
 
+    NodeArrayT* result = create_node_array();
+
+    UnicodeTokenT token = UNICODE_TOKEN_FALSE;
     while (token != UNICODE_TOKEN_RIGHT_SQUARE_BRACKET && token != UNICODE_TOKEN_NONE)
     {
         skip_spaces(parser);
-        NodeT* val = ParseValue(parser);
-        if (result == NULL)
-        {
-            result = (NodeArrayT*) malloc(sizeof(NodeArrayT*));
-            switch (val->valueType)
-            {
-                case NODE_TYPE_STRING:
-                    result->elementSize = sizeof(NodeStringT*);
-                    break;
-                case NODE_TYPE_ARRAY:
-                    result->elementSize = sizeof(NodeArrayT*);
-                    break;
-                case NODE_TYPE_OBJECT:
-                    result->elementSize = sizeof(NodeObjectT*);
-                    break;
-            }
-            result->valueType = NODE_TYPE_ARRAY;
-            result->data = darr_create_generic(result->elementSize);
-        }
-        if (val->valueType == NODE_TYPE_STRING) { wprintf(L"Value \"%s\"\n", ((NodeStringT*) val)->value->data); }
+        NodeT* val = parse_value(parser);
+        if (NODE_TYPE_STRING == val->valueType) { wprintf(L"Value \"%s\"\n", ((NodeStringT*) val)->value->data); }
 
         darr_push_generic(result->data, &val);
         skip_spaces(parser);
@@ -301,41 +295,47 @@ NodeT* ParseArray(JSONParserT* parser)
     }
     move_to_next_char(parser);
 
-    return (NodeT*) result;
+    return result;
 }
 
-NodeT* ParseObject(JSONParserT* parser)
+NodeObjectElementT* create_object_element(NodeStringT* key, NodeT* value)
+{
+    NodeObjectElementT* object = (NodeObjectElementT*) CMALLOC(sizeof(NodeObjectElementT));
+    object->valueType = NODE_TYPE_OBJECT_ELEMENT;
+    object->key = key;
+    object->value = value;
+    return object;
+}
+
+NodeObjectT* create_object()
+{
+    NodeObjectT* result = (NodeObjectT*) CMALLOC(sizeof(NodeObjectT));
+    result->valueType = NODE_TYPE_OBJECT;
+    result->elements = darr_create_generic(sizeof(NodeObjectElementT*));
+    return result;
+}
+
+NodeObjectT* parse_object(JSONParserT* parser)
 {
     NodeObjectT* result = NULL;
     move_to_next_char(parser);
 
     UnicodeTokenT token = UNICODE_TOKEN_FALSE;
 
-    result = (NodeObjectT*) malloc(sizeof(NodeObjectT));
-    result->valueType = NODE_TYPE_OBJECT;
-    result->elements = NULL;
+    result = create_object();
 
-    while (token != UNICODE_TOKEN_RIGHT_CURLY_BRACKET && token != UNICODE_TOKEN_NONE)
+    while (UNICODE_TOKEN_RIGHT_CURLY_BRACKET != token && UNICODE_TOKEN_NONE != token)
     {
         skip_spaces(parser);
-        token = get_current_token(parser);
-        NodeT* key = ParseString(parser);
+        NodeStringT* key = parse_string(parser);
         wprintf(L"Key \"%s\"\n", ((NodeStringT*) key)->value->data);
 
-        token = get_current_token(parser);
         skip_spaces(parser);
-        if (token != UNICODE_TOKEN_COLON) { LOG_ERROR("Expected colon after key string!\n"); }
+        if (get_current_token(parser) != UNICODE_TOKEN_COLON) { LOG_ERROR("Expected colon after key string!\n"); }
         else { parser->offset += current_char_length(parser); }
 
-        printf("Value:");
-        NodeT* value = ParseValue(parser);
-
-        if (result->elements == NULL) { result->elements = darr_create_generic(sizeof(NodeObjectElementT*)); }
-
-        NodeObjectElementT* object = (NodeObjectElementT*) malloc(sizeof(NodeObjectElementT));
-        object->valueType = NODE_TYPE_OBJECT_ELEMENT;
-        object->key = key;
-        object->value = value;
+        wprintf(L"Value:");
+        NodeObjectElementT* object = create_object_element(key, parse_value(parser));
         darr_push_generic(result->elements, &object);
         skip_spaces(parser);
 
@@ -364,10 +364,10 @@ inline static JSONParserResultT json_parse(const char* path, JSONParserT* parser
         parser->length = filesize;
         parser->offset = 0;
 
-        parser->data = ParseValue(parser);
+        parser->data = parse_value(parser);
 
         printf("\n\n\n\n\n\n\n");
-        PrintNode(parser->data);
+        print_node(parser->data);
     }
     return result;
 }
