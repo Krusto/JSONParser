@@ -43,7 +43,7 @@ Includes
 #include "CLog.h"
 #include "JSONParserDefs.h"
 #include "STDTypes.h"
-
+#include <wchar.h> // Header file containing wprintf function 
 /***********************************************************************************************************************
 Static function declarations
 ***********************************************************************************************************************/
@@ -57,6 +57,7 @@ BOOL is_char_space(wchar_t current_unicode_char);
 UnicodeTokenT get_token(wchar_t unicodeChar);
 void move_to_next_char(JSONParserT* parser);
 void free_json_tree(NodeT* node);
+void destroy_json_parser(JSONParserT* parser);
 
 void print_node(NodeT* node)
 {
@@ -231,7 +232,7 @@ NodeStringT* parse_string(JSONParserT* parser)
 NodeArrayT* create_node_array()
 {
     NodeArrayT* result = NULL;
-    result = (NodeArrayT*) CMALLOC(sizeof(NodeArrayT*));
+    result = (NodeArrayT*) CMALLOC(sizeof(NodeArrayT));
     result->valueType = NODE_TYPE_ARRAY;
     result->elementSize = sizeof(NodeT*);
     result->data = darr_create_generic(result->elementSize);
@@ -325,7 +326,6 @@ void free_array(NodeArrayT* arr)
     {
         NodeT* element = (NodeT*) *(long long*) darr_get_ptr(arr->data, i);
         free_json_tree(element);
-        CFREE(element, sizeof(NodeT*));
     }
     darr_destroy(arr->data);
     CFREE(arr, sizeof(NodeArrayT));
@@ -334,7 +334,7 @@ void free_array(NodeArrayT* arr)
 void free_object_element(NodeObjectElementT* element)
 {
     NodeObjectElementT* object = ((NodeObjectElementT*) element);
-    free_json_tree((NodeT*)object->key);
+    free_json_tree((NodeT*) object->key);
     free_json_tree(object->value);
     CFREE(object, sizeof(NodeObjectElementT));
 }
@@ -351,24 +351,33 @@ void free_object(NodeObjectT* object)
     CFREE(object, sizeof(NodeObjecT));
 }
 
+void destroy_json_parser(JSONParserT* parser)
+{
+    free_json_tree(parser->root);
+    CFREE(parser->buffer,parser->length);
+
+}
 void free_json_tree(NodeT* node)
 {
-    switch (node->valueType)
+    if (NULL != node)
     {
-        case NODE_TYPE_OBJECT: {
-            free_object((NodeObjectT*)node);
-            break;
+        switch (node->valueType)
+        {
+            case NODE_TYPE_OBJECT: {
+                free_object((NodeObjectT*) node);
+                break;
+            }
+            case NODE_TYPE_ARRAY:
+                free_array((NodeArrayT*) node);
+                break;
+            case NODE_TYPE_OBJECT_ELEMENT: {
+                free_object_element((NodeObjectElementT*) node);
+                break;
+            }
+            case NODE_TYPE_STRING:
+                free_string((NodeStringT*) node);
+                break;
         }
-        case NODE_TYPE_ARRAY:
-            free_array((NodeArrayT*)node);
-            break;
-        case NODE_TYPE_OBJECT_ELEMENT: {
-            free_object_element((NodeObjectElementT*)node);
-            break;
-        }
-        case NODE_TYPE_STRING:
-            free_string((NodeStringT*)node);
-            break;
     }
 }
 
