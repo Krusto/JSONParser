@@ -42,9 +42,55 @@ Includes
 #include "DString.h"
 #include "STDTypes.h"
 
+
 /***********************************************************************************************************************
 Macro Definitions
 ***********************************************************************************************************************/
+#define UNICODE_TABULATION 0x0009
+#define UNICODE_LINE_FEED 0x000A
+#define UNICODE_CARRIAGE_RETURN 0x000D
+#define UNICODE_SPACE 0x0020
+#define UNICODE_LEFT_SQUARE_BRACKET 0x005B
+#define UNICODE_LEFT_CURLY_BRACKET 0x007B
+#define UNICODE_RIGHT_SQUARE_BRACKET 0x005D
+#define UNICODE_RIGHT_CURLY_BRACKET 0x007D
+#define UNICODE_COLON 0x003A
+#define UNICODE_COMMA 0x002C
+#define UNICODE_t 0x0074
+#define UNICODE_f 0x0066
+#define UNICODE_n 0x006E
+#define UNICODE_QUOTATION_MARK 0x0022
+#define UNICODE_BACK_SLASH 0x005C
+
+#define UNICODE_TOKEN_NONE_STR "UNICODE_TOKEN_NONE"
+#define UNICODE_TOKEN_LEFT_SQUARE_BRACKET_STR "UNICODE_TOKEN_LEFT_SQUARE_BRACKET"
+#define UNICODE_TOKEN_RIGHT_SQUARE_BRACKET_STR "UNICODE_TOKEN_RIGHT_SQUARE_BRACKET"
+#define UNICODE_TOKEN_LEFT_CURLY_BRACKET_STR "UNICODE_TOKEN_LEFT_CURLY_BRACKET"
+#define UNICODE_TOKEN_RIGHT_CURLY_BRACKET_STR "UNICODE_TOKEN_RIGHT_CURLY_BRACKET"
+#define UNICODE_TOKEN_COLON_STR "UNICODE_TOKEN_COLON"
+#define UNICODE_TOKEN_COMMA_STR "UNICODE_TOKEN_COMMA"
+#define UNICODE_TOKEN_QUOTATION_MARK_STR "UNICODE_TOKEN_QUOTATION_MARK"
+#define UNICODE_TOKEN_TRUE_STR "UNICODE_TOKEN_TRUE"
+#define UNICODE_TOKEN_FALSE_STR "UNICODE_TOKEN_FALSE"
+#define UNICODE_TOKEN_NULL_STR "UNICODE_TOKEN_NULL"
+#define UNICODE_TOKEN_BACK_SLASH_STR "UNICODE_TOKEN_BACK_SLASH"
+
+/***********************************************************************************************************************
+Static Variables
+***********************************************************************************************************************/
+
+static const char* tokens_str[] = {UNICODE_TOKEN_NONE_STR,
+                                   UNICODE_TOKEN_LEFT_SQUARE_BRACKET_STR,
+                                   UNICODE_TOKEN_RIGHT_SQUARE_BRACKET_STR,
+                                   UNICODE_TOKEN_LEFT_CURLY_BRACKET_STR,
+                                   UNICODE_TOKEN_RIGHT_CURLY_BRACKET_STR,
+                                   UNICODE_TOKEN_COLON_STR,
+                                   UNICODE_TOKEN_COMMA_STR,
+                                   UNICODE_TOKEN_QUOTATION_MARK_STR,
+                                   UNICODE_TOKEN_TRUE_STR,
+                                   UNICODE_TOKEN_FALSE_STR,
+                                   UNICODE_TOKEN_NULL_STR,
+                                   UNICODE_TOKEN_BACK_SLASH_STR};
 
 /***********************************************************************************************************************
 Type Definitions
@@ -119,7 +165,7 @@ typedef struct {
     size_t length;
     uint32_t offset;
 
-    NodeT* data;
+    NodeT* root;
 } JSONParserT;
 
 #endif// JSONPARSER_DEFS_HEADER

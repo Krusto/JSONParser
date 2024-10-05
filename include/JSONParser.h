@@ -43,42 +43,6 @@ Includes
 #include "CLog.h"
 #include "JSONParserDefs.h"
 #include "STDTypes.h"
-#include <locale.h>
-/***********************************************************************************************************************
-Macro Definitions
-***********************************************************************************************************************/
-#define UNICODE_TABULATION 0x0009
-#define UNICODE_LINE_FEED 0x000A
-#define UNICODE_CARRIAGE_RETURN 0x000D
-#define UNICODE_SPACE 0x0020
-#define UNICODE_LEFT_SQUARE_BRACKET 0x005B
-#define UNICODE_LEFT_CURLY_BRACKET 0x007B
-#define UNICODE_RIGHT_SQUARE_BRACKET 0x005D
-#define UNICODE_RIGHT_CURLY_BRACKET 0x007D
-#define UNICODE_COLON 0x003A
-#define UNICODE_COMMA 0x002C
-#define UNICODE_t 0x0074
-#define UNICODE_f 0x0066
-#define UNICODE_n 0x006E
-#define UNICODE_QUOTATION_MARK 0x0022
-#define UNICODE_BACK_SLASH 0x005C
-
-/***********************************************************************************************************************
-Static Variables
-***********************************************************************************************************************/
-
-static const char* tokens_str[] = {"UNICODE_TOKEN_NONE",
-                                   "UNICODE_TOKEN_LEFT_SQUARE_BRACKET",
-                                   "UNICODE_TOKEN_RIGHT_SQUARE_BRACKET",
-                                   "UNICODE_TOKEN_LEFT_CURLY_BRACKET",
-                                   "UNICODE_TOKEN_RIGHT_CURLY_BRACKET",
-                                   "UNICODE_TOKEN_COLON",
-                                   "UNICODE_TOKEN_COMMA",
-                                   "UNICODE_TOKEN_QUOTATION_MARK",
-                                   "UNICODE_TOKEN_TRUE",
-                                   "UNICODE_TOKEN_FALSE",
-                                   "UNICODE_TOKEN_NULL",
-                                   "UNICODE_TOKEN_BACK_SLASH"};
 
 /***********************************************************************************************************************
 Static function declarations
@@ -92,6 +56,7 @@ uint8_t current_char_length(JSONParserT* parser);
 BOOL is_char_space(wchar_t current_unicode_char);
 UnicodeTokenT get_token(wchar_t unicodeChar);
 void move_to_next_char(JSONParserT* parser);
+void free_json_tree(NodeT* node);
 
 void print_node(NodeT* node)
 {
@@ -105,7 +70,6 @@ void print_node(NodeT* node)
                 NodeT* element = (NodeT*) *(long long*) darr_get_ptr(elements, i);
                 print_node(element);
             }
-
             break;
         }
         case NODE_TYPE_ARRAY:
@@ -347,9 +311,67 @@ NodeObjectT* parse_object(JSONParserT* parser)
     return result;
 }
 
+void free_string(NodeStringT* str)
+{
+    str_destroy(str->value);
+    CFREE(str, sizeof(NodeStringT*));
+}
+
+void free_array(NodeArrayT* arr)
+{
+    for (size_t i = 0; i < darr_length(arr->data); i++)
+    {
+        NodeT* element = (NodeT*) *(long long*) darr_get_ptr(arr->data, i);
+        free_json_tree(element);
+        CFREE(element, sizeof(NodeT*));
+    }
+    darr_destroy(arr->data);
+    CFREE(arr, sizeof(NodeArrayT));
+}
+
+void free_object_element(NodeObjectElementT* element)
+{
+    NodeObjectElementT* object = ((NodeObjectElementT*) element);
+    free_json_tree(object->key);
+    free_json_tree(object->value);
+    CFREE(object, sizeof(NodeObjectElementT));
+}
+
+void free_object(NodeObjectT* object)
+{
+    DArrayT* elements = object->elements;
+    for (size_t i = 0; i < darr_length(elements); i++)
+    {
+        NodeT* element = (NodeT*) *(long long*) darr_get_ptr(elements, i);
+        free_json_tree(element);
+    }
+    darr_destroy(elements);
+    CFREE(object, sizeof(NodeObjecT));
+}
+
+void free_json_tree(NodeT* node)
+{
+    switch (node->valueType)
+    {
+        case NODE_TYPE_OBJECT: {
+            free_object(node);
+            break;
+        }
+        case NODE_TYPE_ARRAY:
+            free_array(node);
+            break;
+        case NODE_TYPE_OBJECT_ELEMENT: {
+            free_object_element(node);
+            break;
+        }
+        case NODE_TYPE_STRING:
+            free_string(node);
+            break;
+    }
+}
+
 inline static JSONParserResultT json_parse(const char* path, JSONParserT* parser)
 {
-    setlocale(LC_ALL, "");
     JSONParserResultT result = JSON_PARSE_RESULT_ERROR;
     LOG_INFO("Parsing %s\n", path);
 
@@ -364,10 +386,7 @@ inline static JSONParserResultT json_parse(const char* path, JSONParserT* parser
         parser->length = filesize;
         parser->offset = 0;
 
-        parser->data = parse_value(parser);
-
-        printf("\n\n\n\n\n\n\n");
-        print_node(parser->data);
+        parser->root = parse_value(parser);
     }
     return result;
 }
