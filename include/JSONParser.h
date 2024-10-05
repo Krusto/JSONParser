@@ -82,12 +82,12 @@ void print_node(NodeT* node)
             NodeObjectElementT* object = ((NodeObjectElementT*) node);
             NodeStringT* key = object->key;
             DStringT* keyStr = key->value;
-            wprintf(L"Key \"%s\"\n", keyStr->data);
+            WLOG_INFO(L"Key \"%s\"\n", keyStr->data);
             print_node(object->value);
             break;
         }
         case NODE_TYPE_STRING:
-            wprintf(L"Value \"%s\"\n", ((NodeStringT*) node)->value->data);
+            WLOG_INFO(L"Value \"%s\"\n", ((NodeStringT*) node)->value->data);
             break;
     }
 }
@@ -334,7 +334,7 @@ void free_array(NodeArrayT* arr)
 void free_object_element(NodeObjectElementT* element)
 {
     NodeObjectElementT* object = ((NodeObjectElementT*) element);
-    free_json_tree(object->key);
+    free_json_tree((NodeT*)object->key);
     free_json_tree(object->value);
     CFREE(object, sizeof(NodeObjectElementT));
 }
@@ -356,18 +356,18 @@ void free_json_tree(NodeT* node)
     switch (node->valueType)
     {
         case NODE_TYPE_OBJECT: {
-            free_object(node);
+            free_object((NodeObjectT*)node);
             break;
         }
         case NODE_TYPE_ARRAY:
-            free_array(node);
+            free_array((NodeArrayT*)node);
             break;
         case NODE_TYPE_OBJECT_ELEMENT: {
-            free_object_element(node);
+            free_object_element((NodeObjectElementT*)node);
             break;
         }
         case NODE_TYPE_STRING:
-            free_string(node);
+            free_string((NodeStringT*)node);
             break;
     }
 }

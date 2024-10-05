@@ -41,6 +41,7 @@ Includes
 ***********************************************************************************************************************/
 #ifndef NO_STD_LOG
 #include <stdio.h>
+#include <wchar.h>
 #endif
 /***********************************************************************************************************************
 Macro Definitions
@@ -70,12 +71,12 @@ Macro Definitions
 
     #define WLOG( ... ) wprintf( __VA_ARGS__ )
     #define WLOG_ERROR( ... )                                                                                               \
-        WLOG( "Error: " );                                                                                                  \
+        WLOG( L"Error: " );                                                                                                  \
         WLOG( __VA_ARGS__ )
     
     #ifdef CUTILS_VERBOSE
         #define WLOG_INFO( ... )                                                                                                \
-            WLOG( "Info: " );                                                                                                   \
+            WLOG( L"Info: " );                                                                                                   \
             WLOG( __VA_ARGS__ )
     #else   
         #define WLOG_INFO( ... )
