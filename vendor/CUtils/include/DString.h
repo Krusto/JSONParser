@@ -53,23 +53,56 @@ Includes
 /***********************************************************************************************************************
 Macro Definitions
 ***********************************************************************************************************************/
-
+/**
+ * @brief Initial capacity of the dynamic string
+ */
 #define DSTRING_INITIAL_CAPACITY 1u
+/**
+ * @brief Resize factor of the dynamic string
+ */
 #define DSTRING_RESIZE_FACTOR 2u
 
+/**
+ * @brief Length of the null termination in bytes
+ */
 #define DSTRING_NULL_TERMINATION_LENGTH 1u
+/**
+ * @brief Null terminator character
+ */
 #define DSTRING_NULL_TERMINATOR '\0';
 
+/**
+ * @brief Maximum ASCII value for a single byte in UTF-8
+ */
 #define UNICODE_UTF8_ASCII_RANGE_MAX 0x7F
+/**
+ * @brief Mask for a single byte in UTF-8
+ */
 #define UNICODE_UTF8_BYTE1_MASK 0xC0
+/**
+ * @brief Mask for a two byte UTF-8 character
+ */
 #define UNICODE_UTF8_BYTE2_MASK 0xE0
+/**
+ * @brief Mask for a three byte UTF-8 character
+ */
 #define UNICODE_UTF8_BYTE3_MASK 0xF0
+/**
+ * @brief Mask for a four byte UTF-8 character
+ */
 #define UNICODE_UTF8_BYTE4_MASK 0xF8
 
 /***********************************************************************************************************************
 Type definitions
 ***********************************************************************************************************************/
-
+/**
+ * @struct DStringT
+ * @brief Dynamic String Type
+ *
+ * @var length is the number of bytes in the string without the NULL termination.
+ * @var capacity is the maximum number of bytes that can be stored in the string.
+ * @var data is a pointer to the first character of the string.
+ */
 typedef struct {
     size_t length;
     size_t capacity;
@@ -79,49 +112,301 @@ typedef struct {
 /***********************************************************************************************************************
 Static functions declaration
 ***********************************************************************************************************************/
-static void str_arr_push_back(DArrayT* arr, DStringT* str);
-static DStringT* str_arr_get(DArrayT* arr, size_t index);
-static int8_t str_get(DStringT* str, size_t index);
-static int8_t* str_get_ptr(DStringT* str, size_t index);
-static int8_t str_front(DStringT* str);
-static int8_t* str_front_ptr(DStringT* str);
-static int8_t str_back(DStringT* str);
-static int8_t* str_back_ptr(DStringT* str);
-static BOOL is_str_empty(DStringT* str);
+/**
+ * @brief Creates empty dynamic string with length = size
+ * 
+ * @param size is the length of the empty string
+ * 
+ * @return DStringT*: String pointer to the dynamic string
+ */
+static DStringT* str_create_empty(size_t size);
+/**
+ * @brief Creates dynamic string from standard c string
+ *
+ * @param str Standard C String buffer ptr
+ * @param size Length in bytes of the input string
+ * @return DStringT*: String pointer to the dynamic string
+ */
 static DStringT* str_create(const int8_t* str, size_t size);
+/**
+ * @brief Destroys and frees the memory of the dynamic string
+ * 
+ *
+ * @param str to be destroyed
+ */
+static void str_destroy(DStringT* str);
+/**
+ * @brief Creates and array of Dynamic Strings
+ * 
+ *
+ * @return DArrayT*: dynamic array of dynamic strings
+ */
+static DArrayT* str_arr_create(void);
+/**
+ * @brief Destroys and frees the memory of the dynamic array of dynamic strings
+ *
+ * @param str: array of strings
+ */
+static void str_arr_destroy(DArrayT* strArray);
+/**
+ * @brief Returns character at index
+ *
+ * @param str: input string
+ * @param index: index of character in str
+ * @return int8_t: char at index
+ */
+static int8_t str_get(DStringT* str, size_t index);
+/**
+ * @brief Returns character pointer of char at index
+ * 
+ * @param str: input string
+ * @param index: index of char
+ * @return int8_t*: address of character
+ */
+static int8_t* str_get_ptr(DStringT* str, size_t index);
+/**
+ * @brief Returns the first char in dynamic string
+ * 
+ * @param str: input string
+ * @return int8_t: first character
+ */
+static int8_t str_front(DStringT* str);
+/**
+ * @brief Returns the first char pointer in dynamic string
+ * 
+ * @param str: input string
+ * @return int8_t: first character pointer
+ */
+static int8_t* str_front_ptr(DStringT* str);
+/**
+ * @brief Returns the last char in dynamic string
+ * 
+ * @param str: input string
+ * @return int8_t: last character
+ */
+static int8_t str_back(DStringT* str);
+/**
+ * @brief Returns the last char pointer in dynamic string
+ * 
+ * @param str: input string
+ * @return int8_t: last character pointer
+ */
+static int8_t* str_back_ptr(DStringT* str);
+/**
+ * @brief Checks if dynamic string is empty
+ * 
+ * @param str input dynamic string
+ * 
+ * @return BOOL: if string is empty
+ */
+static BOOL is_str_empty(DStringT* str);
+/**
+ * @brief Resizes dynamic string to new length
+ * 
+ * @param str: dynamic string
+ * @param newLength: new length of dynamic string
+ */
+static void str_resize(DStringT* str, size_t newLength);
+/**
+ * @brief Removes element at index from dynamic string
+ *
+ * @param str: input dynamic string
+ * @param index: index of element to be removed
+ */
+static void str_erase(DStringT* str, size_t index);
+/**
+ * @brief Inserts element at index in dynamic string
+ * 
+ * @param str: input dynamic string
+ * @param index: index to insert element
+ * @param element: element to be inserted
+ */
+static void str_insert(DStringT* str, uint32_t index, int8_t* element);
+/**
+ * @brief Changes capacity of dynamic string
+ * 
+ * @param str: input dynamic string
+ * @param newCapacity: new capacity
+ */
+static void str_reserve(DStringT* str, size_t newCapacity);
+/**
+ * @brief Shrinks dynamic string to its size
+ * 
+ * @param str: input dynamic string
+ */
+static void str_shring_to_fit(DStringT* str);
+/**
+ * @brief Returns length of C string
+ * 
+ * @param str: input C string
+ * 
+ * @return size_t: length of C string
+ */
 static size_t cstr_length(const int8_t* str);
+
+/**
+ * @brief Checks if dynamic string is valid UTF-8
+ * 
+ * @param str: input dynamic string
+ * 
+ * @return BOOL: if dynamic string is valid UTF-8
+ */
+static BOOL str_is_valid_utf8(DStringT* str);
+/**
+ * @brief Returns length of UTF-8 string
+ * 
+ * @param str: input UTF-8 string
+ * 
+ * @return size_t: length of UTF-8 string
+ */
 static size_t cstr_utf8_length(const int8_t* str);
+/**
+ * @brief Checks if C string contains UTF-8 BOM
+ * 
+ * @param str: input C string
+ * 
+ * @return BOOL: if C string contains UTF-8 BOM
+ */
 static BOOL cstr_contains_utf8_bom(const int8_t* str);
+/**
+ * @brief Checks if C string is UTF-8
+ * 
+ * @param str: input C string
+ * 
+ * @return BOOL: if C string is UTF-8
+ */
 static BOOL cstr_is_utf8(const int8_t* str);
-static BOOL utf8_is_continuation_byte(int8_t byte);
-static BOOL utf8_is_byte_ascii(int8_t byte);
+/**
+ * @brief Checks if UTF-8 string is valid UTF-8
+ * 
+ * @param str: input UTF-8 string
+ * @param length: length of UTF-8 string
+ * 
+ * @return BOOL: if UTF-8 string is valid UTF-8
+ */
 static BOOL cstr_is_valid_utf8(const int8_t* input, size_t length);
+/**
+ * @brief Checks if byte is a continuation byte in UTF-8
+ * 
+ * @param byte: input byte
+ * 
+ * @return BOOL: if byte is a continuation byte
+ */
+static BOOL utf8_is_continuation_byte(int8_t byte);
+/**
+ * @brief Checks if byte is a continuation byte of length 2 in UTF-8
+ * 
+ * @param byte: input byte
+ * 
+ * @return BOOL: if byte is a continuation byte of length 2
+ */
+static BOOL utf8_is_continuation_byte2(int8_t byte);
+/**
+ * @brief Checks if byte is a continuation byte of length 3 in UTF-8
+ * 
+ * @param byte: input byte
+ * 
+ * @return BOOL: if byte is a continuation byte of length 3
+ */
+static BOOL utf8_is_continuation_byte3(int8_t byte);
+/**
+ * @brief Checks if byte is ASCII in UTF-8
+ * 
+ * @param byte: input byte
+ * 
+ * @return BOOL: if byte is ASCII
+ */
+static BOOL utf8_is_byte_ascii(int8_t byte);
+/**
+ * @brief Returns length of a UTF-8 character
+ * 
+ * @param byte: first byte of character
+ * 
+ * @return uint8_t: length of UTF-8 character
+ */
 static uint8_t utf8_get_char_length(int8_t byte);
-static const void utf8_go_next_char(const int8_t* buffer, uint32_t length, uint32_t* currentIndexPtr);
-static const void utf8_go_prev_char(const int8_t* buffer, uint32_t length, uint32_t* currentIndexPtr);
+/**
+ * @brief Goes to the next UTF-8 character in string
+ * 
+ * @param data: input string
+ * @param length: length of string
+ * @param currentIndexPtr: pointer to current index
+ */
+static void utf8_go_next_char(const int8_t* data, uint32_t length, uint32_t* currentIndexPtr);
+/**
+ * @brief Goes to the previous UTF-8 character in string
+ * 
+ * @param data: input string
+ * @param length: length of string
+ * @param currentIndexPtr: pointer to current index
+ */
+static void utf8_go_prev_char(const int8_t* data, uint32_t length, uint32_t* currentIndexPtr);
+/**
+ * @brief Converts UTF-8 string to wide character
+ * 
+ * @param utf8_data: input UTF-8 string
+ * 
+ * @return wchar_t: wide character
+ */
 static wchar_t utf8_to_unicode(const int8_t* utf8_data);
-static BOOL str_is_valid_utf8(DStringT* buf);
-static void str_resize(DStringT* buf, size_t newLength);
-static void str_destroy(DStringT* buf);
-static void str_erase(DStringT* buf, size_t index);
-static void str_insert(DStringT* buf, uint32_t index, int8_t* element);
-static void str_shring_to_fit(DStringT* buf);
-static void str_reserve(DStringT* buf, size_t newCapacity);
-static void* str_arr_create(void);
-static void str_arr_destroy(DArrayT* buf);
-static DStringT* dstring_append_cstring(DStringT* str, const int8_t* cstr);
-static DStringT* dstring_append_dstring(DStringT* str, DStringT* another);
-static DStringT* dstring_insert_dstring(DStringT* str, DStringT* another, size_t index);
+
+/**
+ * @brief Appends dynamic string to dynamic string array
+ *
+ * @param arr: dynamic string array
+ * @param str: dynamic string to be appended
+ */
+static void str_arr_push_back(DArrayT* arr, DStringT* str);
+/**
+ * @brief Returns dynamic string at index from dynamic string array
+ *
+ * @param arr: dynamic string array
+ * @param index: index of dynamic string
+ *
+ * @return DStringT*: dynamic string at index
+ */
+static DStringT* str_arr_get(DArrayT* arr, size_t index);
+/**
+ * @brief Appends standard C string to dynamic string
+ *
+ * @param str: dynamic string
+ * @param cstr: standard C string
+ *
+ * @return DStringT*: dynamic string after appending
+ */
+static DStringT* str_append_cstring(DStringT* str, const int8_t* cstr);
+/**
+ * @brief Appends dynamic string to dynamic string
+ *
+ * @param str: dynamic string
+ * @param another: dynamic string to be appended
+ *
+ * @return DStringT*: dynamic string after appending
+ */
+static DStringT* str_append_dstring(DStringT* str, DStringT* another);
+/**
+ * @brief Inserts dynamic string at index in dynamic string
+ *
+ * @param str: dynamic string
+ * @param another: dynamic string to be inserted
+ * @param index: index of insertion
+ *
+ * @return DStringT*: dynamic string after inserting
+ */
+static DStringT* str_insert_dstring(DStringT* str, DStringT* another, size_t index);
 
 /***********************************************************************************************************************
 Static functions implementation
 ***********************************************************************************************************************/
-static DStringT* str_arr_get(DArrayT* arr, size_t index) { return ((DStringT**) (arr->data))[index]; }
+inline static DStringT* str_arr_get(DArrayT* arr, size_t index) { return ((DStringT**) (arr->data))[index]; }
 
 inline static void str_arr_push_back(DArrayT* arr, DStringT* str)
 {
-    darr_resize(arr, arr->length + 1);
-    ((DStringT**) arr->data)[arr->length - 1] = str;
+    if (str != NULL)
+    {
+        darr_resize(arr, arr->length + 1);
+        ((DStringT**) arr->data)[arr->length - 1] = str;
+    }
 }
 
 inline static int8_t str_get(DStringT* str, size_t index) { return str->data[index]; }
@@ -138,30 +423,42 @@ inline static int8_t* str_back_ptr(DStringT* str) { return &(str->data[str->leng
 
 inline static BOOL is_str_empty(DStringT* str) { return (0 == str->length); }
 
-inline static DStringT* str_create(const int8_t* str, size_t size)
+inline static DStringT* str_create_empty(size_t size)
 {
     DStringT* result = NULL;
-
-    result = (DStringT*) CMALLOC(sizeof(DStringT));
-
-    if (NULL == result) { LOG_ERROR("Can not allocate dynamic string!\n"); }
-    else
+    if (size >= 0)
     {
-        result->length = 0;  // set length to 0
-        result->capacity = 0;// set capacity to DARRAY_INITIAL_CAPACITY
-        result->data = NULL;
+
+        result = (DStringT*) CMALLOC(sizeof(DStringT));
+
+        if (NULL == result) { LOG_ERROR("Can not allocate dynamic string!\n"); }
+        else
+        {
+            result->length = 0;  // set length to 0
+            result->capacity = 0;// set capacity to DARRAY_INITIAL_CAPACITY
+            result->data = NULL;
+
+            int8_t* memory = (int8_t*) CCALLOC(size + 1, sizeof(int8_t));
+            if (NULL == memory) { LOG_ERROR("Can not allocate dynamic string data!\n"); }
+            else
+            {
+                memory[size] = '\0';
+                result->data = memory;
+                result->length = size;
+                result->capacity = size;
+            }
+        }
     }
-    if (size > 0)
-    {
-        int8_t* memory = (int8_t*) CMALLOC(size + 1);
-        int8_t* resultPtr = NULL;
-        resultPtr = (int8_t*) CMEMCPY(memory, str, size);
-        if (NULL == resultPtr) { LOG_ERROR("Can not create string!\n"); }
-        memory[size] = '\0';
-        result->data = memory;
-        result->length = size;
-        result->capacity = size;
-    }
+    return result;
+}
+
+inline static DStringT* str_create(const int8_t* str, size_t size)
+{
+
+    DStringT* result = str_create_empty(size);
+
+    if (result == NULL) { LOG_ERROR("Can not copy str data!"); }
+    else { result->data = (int8_t*) CMEMCPY(result->data, str, size); }
     return result;
 }
 
@@ -240,7 +537,7 @@ inline static size_t cstr_utf8_length(const int8_t* str)
 inline static BOOL cstr_contains_utf8_bom(const int8_t* str)
 {
     BOOL result = TRUE;
-    const int8_t utf8_bom[3] = {0xEF, 0xBB, 0xBF};
+    const int8_t utf8_bom[3] = {(int8_t) 0xEF, (int8_t) 0xBB, (int8_t) 0xBF};
     for (size_t i = 0; i < 3; i++)
     {
         if (str[i] != utf8_bom[i]) { result = FALSE; }
@@ -267,7 +564,7 @@ inline static BOOL utf8_is_continuation_byte2(int8_t byte) { return (byte & UNIC
 
 inline static BOOL utf8_is_continuation_byte3(int8_t byte) { return (byte & UNICODE_UTF8_BYTE3_MASK) == 0x80; }
 
-inline static BOOL utf8_is_byte_ascii(int8_t byte) { return byte <= UNICODE_UTF8_ASCII_RANGE_MAX; }
+inline static BOOL utf8_is_byte_ascii(int8_t byte) { return byte <= UNICODE_UTF8_ASCII_RANGE_MAX && byte >= 0; }
 
 inline static BOOL cstr_is_valid_utf8(const int8_t* input, size_t length)
 {
@@ -372,15 +669,15 @@ inline static uint8_t utf8_get_char_length(int8_t byte)
     return count;
 }
 
-inline static const void utf8_go_next_char(const int8_t* buffer, uint32_t length, uint32_t* currentIndexPtr)
+inline static void utf8_go_next_char(const int8_t* data, uint32_t length, uint32_t* currentIndexPtr)
 {
     uint32_t currentIndex = *currentIndexPtr;
 
-    uint32_t newOffset = currentIndex + utf8_get_char_length(buffer[currentIndex]);
+    uint32_t newOffset = currentIndex + utf8_get_char_length(data[currentIndex]);
     if (newOffset < length) { (*currentIndexPtr) = newOffset; };
 }
 
-inline static const void utf8_go_prev_char(const int8_t* buffer, uint32_t length, uint32_t* currentIndexPtr) {}
+inline static void utf8_go_prev_char(const int8_t* data, uint32_t length, uint32_t* currentIndexPtr) {}
 
 inline static wchar_t utf8_to_unicode(const int8_t* utf8_data)
 {
@@ -409,104 +706,105 @@ inline static wchar_t utf8_to_unicode(const int8_t* utf8_data)
     return unicode;
 }
 
-inline static BOOL str_is_valid_utf8(DStringT* buf) { return cstr_is_valid_utf8(buf->data, buf->length); }
+inline static BOOL str_is_valid_utf8(DStringT* str) { return cstr_is_valid_utf8(str->data, str->length); }
 
-inline static void str_resize(DStringT* buf, size_t newLength)
+inline static void str_resize(DStringT* str, size_t newLength)
 {
-    if (newLength > buf->length)
+    if (newLength > str->length)
     {
-        if (newLength > buf->capacity)
+        if (newLength > str->capacity)
         {
             void* resultPtr;
             size_t newCapacity = newLength * 2;
 
-            if (NULL == buf->data) { resultPtr = CMALLOC(newCapacity); }
-            else { resultPtr = CREALLOC(buf->data, newCapacity); }
+            if (NULL == str->data) { resultPtr = CMALLOC(newCapacity); }
+            else { resultPtr = CREALLOC(str->data, newCapacity); }
             if (NULL == resultPtr) { LOG_ERROR("Can not allocate dynamic string!\n"); }
 
             if (NULL != resultPtr)
             {
-                buf->data = resultPtr;
-                buf->length = newLength;
-                buf->capacity = newCapacity;
+                str->data = (int8_t*) resultPtr;
+                str->length = newLength;
+                str->capacity = newCapacity;
             }
         }
-        else { buf->length = newLength; }
+        else { str->length = newLength; }
     }
-    else { buf->length = newLength; }
+    else { str->length = newLength; }
 }
 
-inline static void str_destroy(DStringT* buf)
+inline static void str_destroy(DStringT* str)
 {
-    if (NULL != buf)
+    if (NULL != str)
     {
-        if (buf->data) { CFREE(buf->data, buf->length); }
-        CFREE((void*) buf, sizeof(DStringT*));
+        if (str->data) { CFREE(str->data, str->length); }
+        CFREE((void*) str, sizeof(DStringT*));
     }
 }
 
-inline static void str_erase(DStringT* buf, size_t index)
+inline static void str_erase(DStringT* str, size_t index)
 {
-    if (index < buf->length)
+    if (index < str->length)
     {
         void* resultPtr = NULL;
-        if (NULL != buf->data)
+        if (NULL != str->data)
         {
-            void* dest = &(buf->data[index]);
-            void* src = &(buf->data[index + 1]);
-            resultPtr = CMEMCPY(dest, src, (buf->length - index));
+            void* dest = &(str->data[index]);
+            void* src = &(str->data[index + 1]);
+            resultPtr = CMEMCPY(dest, src, (str->length - index));
             if (NULL == resultPtr) { LOG_ERROR("Can not copy string array!\n"); }
         }
-        if (NULL != resultPtr) { buf->length -= 1; }
+        if (NULL != resultPtr) { str->length -= 1; }
     }
 }
 
-inline static void str_insert(DStringT* buf, uint32_t index, int8_t* element)
+inline static void str_insert(DStringT* str, uint32_t index, int8_t* element)
 {
-    void* src = &(buf->data[index]);
-    void* dest = &(buf->data[index + 1]);
+    void* src = &(str->data[index]);
+    void* dest = &(str->data[index + 1]);
     void* resultPtr = NULL;
 
-    resultPtr = CMEMCPY(dest, src, (buf->length - index - 1));
+    str_resize(str, str->length + 1);
+    resultPtr = CMEMCPY(dest, src, (str->length - index - 1));
 
     if (NULL == resultPtr) { LOG_ERROR("Can not copy string array!\n"); }
     if (NULL != resultPtr) { resultPtr = CMEMCPY(src, element, 1); }
 }
 
-inline static void str_shring_to_fit(DStringT* buf)
+inline static void str_shring_to_fit(DStringT* str)
 {
-    if (buf->capacity > buf->length)
+    if (str->capacity > str->length)
     {
         void* resultPtr = NULL;
-        if (NULL != buf->data) { resultPtr = CREALLOC(buf->data, buf->length); }
+        if (NULL != str->data) { resultPtr = CREALLOC(str->data, str->length); }
         if (NULL == resultPtr) { LOG_ERROR("Can not reallocate string array!\n"); }
         if (NULL != resultPtr)
         {
-            buf->capacity = buf->length;
-            buf->data = resultPtr;
+            str->capacity = str->length;
+            str->data = (int8_t*) resultPtr;
         }
     }
 }
 
-inline static void str_reserve(DStringT* buf, size_t newCapacity)
+inline static void str_reserve(DStringT* str, size_t newCapacity)
 {
-    if (newCapacity > buf->capacity)
+    if (newCapacity > str->capacity)
     {
         void* resultPtr;
 
-        if (NULL == buf->data) { resultPtr = CMALLOC(newCapacity); }
-        else { resultPtr = CREALLOC(buf->data, newCapacity); }
+        if (NULL == str->data) { resultPtr = CMALLOC(newCapacity); }
+        else { resultPtr = CREALLOC(str->data, newCapacity); }
 
         if (NULL == resultPtr) { LOG_ERROR("Can not allocate string array!\n"); }
         if (NULL != resultPtr)
         {
-            buf->data = resultPtr;
-            buf->capacity = newCapacity;
+            str->data = (int8_t*) resultPtr;
+            str->capacity = newCapacity;
         }
     }
 }
 
-inline static void* str_arr_create(void)
+inline static DArrayT* str_arr_create(void)
 {
     DArrayT* result = NULL;
 
@@ -515,33 +813,33 @@ inline static void* str_arr_create(void)
     if (NULL == result) { LOG_ERROR("Can not allocate dynamic array!\n"); }
     else
     {
-        result->length = 0;                    // set length to 0
-        result->capacity = 0;                  // set capacity to DARRAY_INITIAL_CAPACITY
-        result->elementSize = sizeof(int8_t**);// set element size to stride
+        result->length = 0;                   // set length to 0
+        result->capacity = 0;                 // set capacity to 0
+        result->elementSize = sizeof(int8_t*);// set element size to stride
         result->data = NULL;
     }
 
-    return (void*) result;
+    return result;
 }
 
-inline static void str_arr_destroy(DArrayT* buf)
+inline static void str_arr_destroy(DArrayT* strArray)
 {
-    if (NULL != buf)
+    if (NULL != strArray)
     {
-        for (size_t i = 0; i < darr_length(buf); i++) { str_destroy(str_arr_get(buf, i)); }
-        if (buf->data) { CFREE(buf->data, buf->length); }
-        CFREE((void*) buf, DARRAY_HEADER_SIZE + sizeof(int8_t*));
+        for (size_t i = 0; i < darr_length(strArray); i++) { str_destroy(*((DStringT**) darr_get_ptr(strArray, i))); }
+        if (strArray->data) { CFREE(strArray->data, strArray->length); }
+        CFREE((void*) strArray, DARRAY_HEADER_SIZE + sizeof(int8_t*));
     }
 }
 
-inline static DStringT* dstring_append_cstring(DStringT* str, const int8_t* cstr)
+inline static DStringT* str_append_cstring(DStringT* str, const int8_t* cstr)
 {
 
     size_t old_length = str->length;
     size_t cstrLength = cstr_length(cstr);
     str_resize(str, str->length + cstrLength + DSTRING_NULL_TERMINATION_LENGTH);
 
-    DStringT* resultData = CMEMCPY(&str->data[old_length], cstr, cstrLength);
+    DStringT* resultData = (DStringT*) CMEMCPY(&str->data[old_length], cstr, cstrLength);
     if (NULL == resultData) { LOG_ERROR("Can not resize string!\n"); }
     else
     {
@@ -553,13 +851,13 @@ inline static DStringT* dstring_append_cstring(DStringT* str, const int8_t* cstr
     return resultData;
 }
 
-inline static DStringT* dstring_append_dstring(DStringT* str, DStringT* another)
+inline static DStringT* str_append_dstring(DStringT* str, DStringT* another)
 {
     size_t destPtrIndex = str->length;
     size_t insertDataLength = another->length;
     str_resize(str, destPtrIndex + insertDataLength + DSTRING_NULL_TERMINATION_LENGTH);
 
-    int8_t* resultData = CMEMCPY(&str->data[destPtrIndex], another->data, insertDataLength);
+    int8_t* resultData = (int8_t*) CMEMCPY(&str->data[destPtrIndex], another->data, insertDataLength);
     if (NULL != resultData)
     {
         resultData = (int8_t*) str;
@@ -571,13 +869,13 @@ inline static DStringT* dstring_append_dstring(DStringT* str, DStringT* another)
     return (DStringT*) resultData;
 }
 
-inline static DStringT* dstring_insert_dstring(DStringT* str, DStringT* another, size_t index)
+inline static DStringT* str_insert_dstring(DStringT* str, DStringT* another, size_t index)
 {
     size_t oldLength = str->length;
     str_resize(str, str->length + another->length + DSTRING_NULL_TERMINATION_LENGTH);
 
-    int8_t* resultData = CMEMCPY(&str->data[index + another->length], &str->data[index], oldLength - index);
-    if (NULL != resultData) { resultData = CMEMCPY(&str->data[index], another->data, another->length); }
+    int8_t* resultData = (int8_t*) CMEMCPY(&str->data[index + another->length], &str->data[index], oldLength - index);
+    if (NULL != resultData) { resultData = (int8_t*) CMEMCPY(&str->data[index], another->data, another->length); }
     if (NULL != resultData)
     {
         resultData = (int8_t*) str;

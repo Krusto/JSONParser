@@ -9,7 +9,7 @@ int main(void)
 
     JSONParserT parser = {NULL};
 
-    JSONParserResultT parseResult = json_parse("/home/banitsa/Projects/JSONParser/bin/assets/test.json", &parser);
+    JSONParserResultT parseResult = json_parse("./assets/test.json", &parser);
 
     // if (JSON_PARSE_RESULT_OK != parseResult) { return -1; }
 

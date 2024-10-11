@@ -59,6 +59,12 @@ Includes
 /***********************************************************************************************************************
 Macro Definitions
 ***********************************************************************************************************************/
+/**
+ * @def MAX_PATH_SIZE
+ * @brief Maximum path size
+ * @details
+ *      Maximum size of a path to a file or directory. This is used to prevent buffer overflows.
+ */
 #define MAX_PATH_SIZE 2048u
 
 /***********************************************************************************************************************
@@ -124,7 +130,7 @@ inline static FileOpResultT file_read_binary(const int8_t* filename, size_t* fil
         fseek(fileIn, 0, SEEK_END);
         *filesize = ftell(fileIn);
         rewind(fileIn);
-        LOG_INFO("Filesize %d bytes.\n", *filesize);
+        LOG_INFO("Filesize %ld bytes.\n", *filesize);
 
         // allocate memory to contain the whole file.
         *buffer = (uint8_t*) CMALLOC(*filesize);
@@ -171,7 +177,7 @@ inline static FileOpResultT file_read_string(const int8_t* filename, size_t* fil
         fseek(fileIn, 0, SEEK_END);
         *filesize = ftell(fileIn);
         rewind(fileIn);
-        LOG_INFO("Filesize %d bytes.\n", *filesize);
+        LOG_INFO("Filesize %ld bytes.\n", *filesize);
 
         // Allocate memory for the file content
         *buffer = (uint8_t*) CMALLOC(*filesize + 1);// Extra byte for null-terminator for text
@@ -212,7 +218,7 @@ FileOpResultT file_read_utf8(const int8_t* filename, size_t* filesize, int8_t** 
         fseek(fileIn, 0, SEEK_END);
         *filesize = ftell(fileIn);
         rewind(fileIn);
-        LOG_INFO("Filesize %d bytes.\n", *filesize);
+        LOG_INFO("Filesize %ld bytes.\n", *filesize);
 
         // allocate memory to contain the whole file.
         *buffer = (uint8_t*) CMALLOC(*filesize + 1);
@@ -224,7 +230,13 @@ FileOpResultT file_read_utf8(const int8_t* filename, size_t* filesize, int8_t** 
         else
         {
             // copy the file into the buffer.
-            fread(*buffer, 1, *filesize, fileIn);
+            size_t readBytesCount = fread(*buffer, 1, *filesize, fileIn);
+            if (readBytesCount != *filesize)
+            {
+                LOG_ERROR("Error reading file %s! Expected %ld bytes, read %ld bytes.\n", filename, *filesize,
+                          readBytesCount);
+                result = FILE_READ_ERROR;
+            }
         }
         fclose(fileIn);
     }
@@ -240,12 +252,6 @@ FileOpResultT file_read_utf8(const int8_t* filename, size_t* filesize, int8_t** 
     return result;
 }
 
-/**
- * @brief Writes string to a file
- * @param filename Path to the file
- * @param buffer String to write
- * @return File Operation Result
- */
 inline static FileOpResultT file_write_string(const int8_t* filename, const int8_t* buffer)
 {
     FileOpResultT result = FILE_WROTE_SUCCESFULLY;
@@ -264,14 +270,14 @@ inline static FileOpResultT file_write_string(const int8_t* filename, const int8
 
         // Write the buffer to the file
 
-        size_t written_size = fprintf(fileOut, buffer);
+        size_t written_size = fprintf(fileOut, "%s", (const char*) buffer);
 
         if (written_size == 0)
         {
-            LOG_ERROR("Error writing to file %s!Wrote %d bytes.\n", filename, written_size);
+            LOG_ERROR("Error writing to file %s!Wrote %ld bytes.\n", filename, written_size);
             result = FILE_WRITE_ERROR;
         }
-        else { LOG_INFO("Successfully wrote %d bytes to %s.\n", written_size, filename); }
+        else { LOG_INFO("Successfully wrote %ld bytes to %s.\n", written_size, filename); }
 
         fclose(fileOut);
     }
@@ -279,13 +285,6 @@ inline static FileOpResultT file_write_string(const int8_t* filename, const int8
     return result;
 }
 
-/**
- * @brief Writes binary buffer to file
- * @param filename Path to the file
- * @param buffer Buffer to write
- * @param filesize Size of the buffer to write
- * @return File Operation Result
- */
 inline static FileOpResultT file_write_binary(const int8_t* filename, const int8_t* buffer, size_t filesize)
 {
     FileOpResultT result = FILE_WROTE_SUCCESFULLY;
@@ -307,11 +306,11 @@ inline static FileOpResultT file_write_binary(const int8_t* filename, const int8
 
         if (written_size != filesize)
         {
-            LOG_ERROR("Error writing to file %s! Expected %d bytes, wrote %d bytes.\n", filename, filesize,
+            LOG_ERROR("Error writing to file %s! Expected %ld bytes, wrote %ld bytes.\n", filename, filesize,
                       written_size);
             result = FILE_WRITE_ERROR;
         }
-        else { LOG_INFO("Successfully wrote %d bytes to %s.\n", written_size, filename); }
+        else { LOG_INFO("Successfully wrote %ld bytes to %s.\n", written_size, filename); }
 
         fclose(fileOut);
     }
@@ -319,10 +318,6 @@ inline static FileOpResultT file_write_binary(const int8_t* filename, const int8
     return result;
 }
 
-/**
- * @brief frees all dynamic strings from folder content struct
- * @param contents 
- */
 inline static void free_folder_contents_struct(FolderContentsT* contents)
 {
     if (NULL != contents->files) { str_arr_destroy(contents->files); }
@@ -417,12 +412,7 @@ inline static FileOpResultT get_file_info(const int8_t* path, FileInfoT* fileInf
 }
 #endif
 #ifdef _WIN32
-/**
- * @brief lists directory contents
- * @param dir path to directory
- * @param contents output list
- * @return TRUE if success otherwise FALSE
- */
+
 inline static BOOL list_directory_contents(const int8_t* dir, FolderContentsT* contents)
 {
     contents->path = string_view_create(dir);
@@ -472,14 +462,11 @@ inline static BOOL list_directory_contents(const int8_t* dir, FolderContentsT* c
 #else
 
 #include <errno.h>
+#ifdef _DEFAULT_SOURCE
+#undef _DEFAULT_SOURCE
+#endif
 #define _DEFAULT_SOURCE
 
-/**
- * @brief lists directory contents
- * @param dir path to directory
- * @param contents output list
- * @return TRUE if success otherwise FALSE
- */
 inline static BOOL list_directory_contents(const int8_t* dir, FolderContentsT* contents)
 {
     contents->files = str_arr_create();
