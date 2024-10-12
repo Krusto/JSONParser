@@ -9,12 +9,12 @@ int main(void)
 
     JSONParserT parser = {NULL};
 
-    JSONParserResultT parseResult = json_parse("./assets/test.json", &parser);
+    JSONParserResultT parseResult = json_parse_file("./assets/test.json", &parser);
 
     // if (JSON_PARSE_RESULT_OK != parseResult) { return -1; }
 
     printf("\n\n\n\n\n\n\n");
-    print_node(parser.root);
+    print_node(parser.root, 0);
     destroy_json_parser(&parser);
 
     return 0;
