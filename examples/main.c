@@ -8,7 +8,6 @@ int main(void)
     setlocale(LC_ALL, "");
 
     JSONParserT parser = {NULL};
-    parser.verboseOutput = 1;
     JSONParserResultT parseResult = json_parse_file("./assets/test.json", &parser);
 
     if (JSON_PARSE_RESULT_OK != parseResult)

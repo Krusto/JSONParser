@@ -60,7 +60,7 @@ Macro Definitions
 #define CMALLOC(size) malloc(size)
 #define CCALLOC(num, size) calloc(num, size)
 #define CREALLOC(p, new_size) realloc(p, new_size)
-#define CFREE(p, size) free(p)
+#define CFREE(p, size) free((void*) p)
 #define CMEMSET(p, value, size) memset(p, value, size)
 #else
 #define CMEMCPY(dest, p, size)
