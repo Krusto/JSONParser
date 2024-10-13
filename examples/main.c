@@ -8,13 +8,16 @@ int main(void)
     setlocale(LC_ALL, "");
 
     JSONParserT parser = {NULL};
-
+    parser.verboseOutput = 1;
     JSONParserResultT parseResult = json_parse_file("./assets/test.json", &parser);
 
-    // if (JSON_PARSE_RESULT_OK != parseResult) { return -1; }
+    if (JSON_PARSE_RESULT_OK != parseResult)
+    {
+        LOG_ERROR("Error while parsing JSON file!\n");
+        return -1;
+    }
 
-    printf("\n\n\n\n\n\n\n");
-    print_node(parser.root, 0);
+    json_print_tree(parser.root, 0);
     destroy_json_parser(&parser);
 
     return 0;

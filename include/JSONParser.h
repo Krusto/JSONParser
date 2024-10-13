@@ -52,21 +52,21 @@ Macro definitions
 #define json_move_to_next_char(parser) ((parser)->offset += utf8_get_char_length(json_get_current_char(parser)))
 #define json_move_to_prev_char(parser) ((parser)->offset -= utf8_get_char_length(json_get_current_char(parser)))
 #define json_current_char_length(parser) utf8_get_char_length(json_get_current_char(parser))
-#define json_get_current_token(parser) get_token(parser)
 
 /***********************************************************************************************************************
 Static function declarations
 ***********************************************************************************************************************/
 JSONObjectT* json_parse_value(JSONParserT* parser);
+JSONObjectT* json_parse_literal(JSONParserT* parser);
 JSONStringT* json_parse_string(JSONParserT* parser);
 JSONArrayT* json_parse_array(JSONParserT* parser);
 JSONObjectObjectElementT* json_parse_object_element(JSONParserT* parser);
 JSONObjectObjectT* json_parse_object(JSONParserT* parser);
-
+BOOL is_token_character(UnicodeTokenT unicodeToken);
 void free_json_tree(JSONObjectT* node);
 void destroy_json_parser(JSONParserT* parser);
 
-void print_node(JSONObjectT* node, uint32_t indent)
+void json_print_tree(JSONObjectT* node, uint32_t indent)
 {
     switch (node->valueType)
     {
@@ -77,15 +77,18 @@ void print_node(JSONObjectT* node, uint32_t indent)
             for (size_t i = 0; i < darr_length(elements); i++)
             {
                 JSONObjectT* element = (JSONObjectT*) *(long long*) darr_get_ptr(elements, i);
-                print_node(element, indent);
+                json_print_tree(element, indent);
             }
             break;
         }
         case NODE_TYPE_ARRAY:
+            WLOG(L"[\n");
             for (size_t i = 0; i < darr_length(((JSONArrayT*) node)->data); i++)
             {
-                print_node((JSONObjectT*) *(long long*) darr_get_ptr(((JSONArrayT*) node)->data, i), indent);
+                json_print_tree((JSONObjectT*) *(long long*) darr_get_ptr(((JSONArrayT*) node)->data, i), indent);
             }
+            for (size_t i = 0; i < indent + 4; i++) { WLOG(L" "); }
+            WLOG(L"]\n");
             break;
         case NODE_TYPE_OBJECT_ELEMENT: {
             JSONObjectObjectElementT* object = ((JSONObjectObjectElementT*) node);
@@ -95,11 +98,22 @@ void print_node(JSONObjectT* node, uint32_t indent)
             for (size_t i = 0; i < indent; i++) { WLOG(L" "); }
             WLOG(L"Key \"%s\" : ", keyStr->data);
             indent += 2;
-            print_node(object->value, indent);
+            json_print_tree(object->value, indent);
             break;
         }
         case NODE_TYPE_STRING:
             WLOG(L"\"%s\"\n", ((JSONStringT*) node)->value->data);
+            break;
+        case NODE_TYPE_TRUE:
+            WLOG(L"true\n");
+            break;
+        case NODE_TYPE_FALSE:
+            WLOG(L"false\n");
+            break;
+        case NODE_TYPE_NULL:
+            WLOG(L"null\n");
+            break;
+        default:
             break;
     }
 }
@@ -107,13 +121,56 @@ void print_node(JSONObjectT* node, uint32_t indent)
 /***********************************************************************************************************************
 Static function definitions
 ***********************************************************************************************************************/
-UnicodeTokenT get_token(JSONParserT* parser)
+
+UnicodeTokenT json_get_current_token(JSONParserT* parser)
 {
-    wchar_t unicodeChar = json_current_unicode_char(parser);
-    return unicodeChar;
+    UnicodeTokenT result = UNICODE_TOKEN_NONE;
+    UnicodeCharacterT unicodeChar = json_current_unicode_char(parser);
+    if (is_token_character(unicodeChar)) { result = unicodeChar; }
+    else
+    {
+        switch (unicodeChar)
+        {
+            case UNICODE_QUOTATION_MARK:
+            case UNICODE_COMMA:
+            case UNICODE_COLON:
+            case UNICODE_LEFT_SQUARE_BRACKET:
+            case UNICODE_BACK_SLASH:
+            case UNICODE_RIGHT_SQUARE_BRACKET:
+            case UNICODE_LEFT_CURLY_BRACKET:
+            case UNICODE_RIGHT_CURLY_BRACKET:
+                result = unicodeChar;
+                break;
+            case UNICODE_NONE:
+            case UNICODE_TABULATION:
+            case UNICODE_LINE_FEED:
+            case UNICODE_CARRIAGE_RETURN:
+            case UNICODE_SPACE:
+                result = UNICODE_TOKEN_NONE;
+                break;
+        }
+    }
+    return result;
 }
 
-BOOL is_char_space(wchar_t unicodeChar)
+UnicodeTokenT json_get_prev_token(JSONParserT* parser)
+{
+    UnicodeTokenT result = UNICODE_TOKEN_NONE;
+    json_move_to_prev_char(parser);
+    result = json_get_current_token(parser);
+    json_move_to_next_char(parser);
+    return result;
+}
+
+BOOL is_token_character(UnicodeTokenT unicodeToken)
+{
+    BOOL result = FALSE;
+    if (unicodeToken >= UNICODE_TOKEN_A && unicodeToken <= UNICODE_TOKEN_Z) { result = TRUE; }
+
+    return result;
+}
+
+BOOL is_char_space(UnicodeCharacterT unicodeChar)
 {
     return (unicodeChar == UNICODE_TABULATION || unicodeChar == UNICODE_LINE_FEED ||
             unicodeChar == UNICODE_CARRIAGE_RETURN || unicodeChar == UNICODE_SPACE);
@@ -131,6 +188,31 @@ void json_buffer_skip_spaces(JSONParserT* parser)
     }
 }
 
+void json_check_skip_colon(JSONParserT* parser)
+{
+    if (json_get_current_token(parser) != UNICODE_TOKEN_COLON) { LOG_ERROR("Expected colon after key string!\n"); }
+    else { parser->offset += json_current_char_length(parser); }
+}
+
+UnicodeTokenT json_check_comma(JSONParserT* parser)
+{
+    UnicodeTokenT result = json_get_current_token(parser);
+    if (result != UNICODE_TOKEN_COMMA) { LOG_ERROR("Expected comma after value!\n"); }
+    return result;
+}
+
+UnicodeTokenT json_check_skip_comma(JSONParserT* parser)
+{
+    UnicodeTokenT result = json_get_current_token(parser);
+    if (result == UNICODE_TOKEN_COMMA) { parser->offset += json_current_char_length(parser); }
+    return result;
+}
+
+UnicodeTokenT json_is_object_end(JSONParserT* parser)
+{
+    return json_get_current_token(parser) == UNICODE_TOKEN_RIGHT_CURLY_BRACKET;
+}
+
 JSONObjectT* json_parse_value(JSONParserT* parser)
 {
     json_buffer_skip_spaces(parser);
@@ -146,11 +228,135 @@ JSONObjectT* json_parse_value(JSONParserT* parser)
         case UNICODE_TOKEN_LEFT_SQUARE_BRACKET:
             result = (JSONObjectT*) json_parse_array(parser);
             break;
-        case UNICODE_TOKEN_QUOTATION_MARK: {
+        case UNICODE_TOKEN_QUOTATION_MARK:
             result = (JSONObjectT*) json_parse_string(parser);
-        }
-        break;
+            break;
+        case UNICODE_TOKEN_A:
+        case UNICODE_TOKEN_E:
+        case UNICODE_TOKEN_F:
+        case UNICODE_TOKEN_L:
+        case UNICODE_TOKEN_N:
+        case UNICODE_TOKEN_R:
+        case UNICODE_TOKEN_S:
+        case UNICODE_TOKEN_T:
+        case UNICODE_TOKEN_U:
+            result = (JSONObjectT*) json_parse_literal(parser);
+            break;
     }
+    return result;
+}
+
+BOOL is_literal_true(UnicodeTokenT* tokens, size_t tokenCount)
+{
+    BOOL result = TRUE;
+    if (tokenCount != 4) { result = FALSE; }
+    else
+    {
+        UnicodeTokenT trueLiteral[] = {UNICODE_TOKEN_T, UNICODE_TOKEN_R, UNICODE_TOKEN_U, UNICODE_TOKEN_E};
+        for (size_t i = 0; ((i < tokenCount) && result); i++)
+        {
+            if (tokens[i] != trueLiteral[i]) { result = FALSE; }
+        }
+    }
+    return result;
+}
+
+BOOL is_literal_false(UnicodeTokenT* tokens, size_t tokenCount)
+{
+    BOOL result = TRUE;
+    if (tokenCount != 5) { result = FALSE; }
+    else
+    {
+        UnicodeTokenT falseLiteral[] = {UNICODE_TOKEN_F, UNICODE_TOKEN_A, UNICODE_TOKEN_L, UNICODE_TOKEN_S,
+                                        UNICODE_TOKEN_E};
+        for (size_t i = 0; ((i < tokenCount) && result); i++)
+        {
+            if (tokens[i] != falseLiteral[i]) { result = FALSE; }
+        }
+    }
+    return result;
+}
+
+BOOL is_literal_null(UnicodeTokenT* tokens, size_t tokenCount)
+{
+    BOOL result = TRUE;
+    if (tokenCount != 3) { result = FALSE; }
+    else
+    {
+        UnicodeTokenT nullLiteral[] = {UNICODE_TOKEN_N, UNICODE_TOKEN_U, UNICODE_TOKEN_L, UNICODE_TOKEN_L};
+        for (size_t i = 0; ((i < tokenCount) && result); i++)
+        {
+            if (tokens[i] != nullLiteral[i]) { result = FALSE; }
+        }
+    }
+    return result;
+}
+
+BOOL is_string_start(JSONParserT* parser)
+{
+    UnicodeTokenT token = json_get_current_token(parser);
+    return token == UNICODE_TOKEN_QUOTATION_MARK;
+}
+
+BOOL is_string_end(JSONParserT* parser)
+{
+    UnicodeTokenT token = json_get_current_token(parser);
+    return token == UNICODE_TOKEN_QUOTATION_MARK;
+}
+
+BOOL is_escape_character(JSONParserT* parser)
+{
+    UnicodeTokenT token = json_get_current_token(parser);
+    return token == UNICODE_TOKEN_BACK_SLASH;
+}
+
+BOOL is_array_end(JSONParserT* parser)
+{
+    UnicodeTokenT token = json_get_current_token(parser);
+    return token == UNICODE_TOKEN_RIGHT_SQUARE_BRACKET;
+}
+
+BOOL is_escaped(JSONParserT* parser) { return json_get_prev_token(parser) == UNICODE_TOKEN_BACK_SLASH; }
+
+BOOL is_node_string(JSONObjectT* node) { return node->valueType == NODE_TYPE_STRING; }
+
+BOOL is_node_literal(JSONObjectT* node) { return node->valueType != NODE_TYPE_STRING; }
+
+BOOL is_node_object(JSONObjectT* node) { return node->valueType == NODE_TYPE_OBJECT; }
+
+BOOL is_node_array(JSONObjectT* node) { return node->valueType == NODE_TYPE_ARRAY; }
+
+BOOL is_node_object_element(JSONObjectT* node) { return node->valueType == NODE_TYPE_OBJECT_ELEMENT; }
+
+JSONObjectT* json_parse_literal(JSONParserT* parser)
+{
+    json_buffer_skip_spaces(parser);
+    const size_t max_literal_length = 10;
+    UnicodeTokenT tokens[max_literal_length];
+    size_t token_count = 0;
+
+    UnicodeTokenT current_token = json_get_current_token(parser);
+    while (is_token_character(current_token) && token_count < max_literal_length)
+    {
+        tokens[token_count++] = current_token;
+        json_move_to_next_char(parser);
+        current_token = json_get_current_token(parser);
+    }
+    if (token_count >= max_literal_length - 1)
+    {
+        while (is_token_character(current_token))
+        {
+            json_move_to_next_char(parser);
+            current_token = json_get_current_token(parser);
+        }
+    }
+
+    JSONObjectT* result = (JSONObjectT*) malloc(sizeof(JSONObjectT));
+    if (is_literal_true(tokens, token_count)) { result->valueType = NODE_TYPE_TRUE; }
+    else if (is_literal_false(tokens, token_count)) { result->valueType = NODE_TYPE_FALSE; }
+    else if (is_literal_null(tokens, token_count)) { result->valueType = NODE_TYPE_NULL; }
+    else { result->valueType = NODE_TYPE_NULL; }
+
     return result;
 }
 
@@ -166,30 +372,23 @@ JSONStringT* create_node_string(const int8_t* data, size_t length)
 JSONStringT* json_parse_string(JSONParserT* parser)
 {
     JSONStringT* result = NULL;
-
-    UnicodeTokenT token = json_get_current_token(parser);
-    if (token == UNICODE_TOKEN_QUOTATION_MARK)
+    if (is_string_start(parser))
     {
         CStringViewT str;
         const int8_t* data = &parser->buffer[parser->offset + json_current_char_length(parser)];
         uint32_t length = 0;
         parser->offset += 1;
-        token = json_get_current_token(parser);
-        while (token != UNICODE_TOKEN_QUOTATION_MARK || token == UNICODE_TOKEN_BACK_SLASH)
+
+        UnicodeTokenT token = json_get_current_token(parser);
+        while (!is_string_end(parser) || is_escape_character(parser))
         {
-            if (UNICODE_TOKEN_BACK_SLASH == token && UNICODE_TOKEN_QUOTATION_MARK == json_get_current_token(parser))
-            {
-                token = UNICODE_TOKEN_NONE;
-            }
-            else { token = json_get_current_token(parser); }
+            if (is_escaped(parser) && is_string_end(parser)) { token = UNICODE_TOKEN_NONE; }
             length += json_current_char_length(parser);
-            parser->offset += json_current_char_length(parser);
+            json_move_to_next_char(parser);
         }
-        length -= 1;
+        if (is_string_end(parser)) { json_move_to_next_char(parser); }
 
         result = create_node_string(data, length);
-
-        wprintf(L"Value \"%s\"\n", result->value->data);
     }
 
     return result;
@@ -211,25 +410,21 @@ JSONArrayT* json_parse_array(JSONParserT* parser)
 
     JSONArrayT* result = create_node_array();
 
-    UnicodeTokenT token = UNICODE_TOKEN_FALSE;
-    while (token != UNICODE_TOKEN_RIGHT_SQUARE_BRACKET && token != UNICODE_TOKEN_NONE)
+    UnicodeTokenT token = UNICODE_TOKEN_ALL;
+    while (!is_array_end(parser))
     {
         json_buffer_skip_spaces(parser);
-        JSONObjectT* val = json_parse_value(parser);
-        if (NODE_TYPE_STRING == val->valueType) { wprintf(L"Value \"%s\"\n", ((JSONStringT*) val)->value->data); }
-
-        darr_push_generic(result->data, &val);
+        darr_push_ptr(result->data, json_parse_value(parser));
         json_buffer_skip_spaces(parser);
 
-        token = json_get_current_token(parser);
-        if (token == UNICODE_TOKEN_COMMA) { parser->offset += json_current_char_length(parser); }
+        json_check_skip_comma(parser);
     }
     json_move_to_next_char(parser);
 
     return result;
 }
 
-JSONObjectObjectElementT* create_object_element(JSONStringT* key, JSONObjectT* value)
+JSONObjectObjectElementT* json_create_json_object_element(JSONStringT* key, JSONObjectT* value)
 {
     JSONObjectObjectElementT* object = (JSONObjectObjectElementT*) CMALLOC(sizeof(JSONObjectObjectElementT));
     object->valueType = NODE_TYPE_OBJECT_ELEMENT;
@@ -238,7 +433,7 @@ JSONObjectObjectElementT* create_object_element(JSONStringT* key, JSONObjectT* v
     return object;
 }
 
-JSONObjectObjectT* create_object()
+JSONObjectObjectT* json_create_json_object()
 {
     JSONObjectObjectT* result = (JSONObjectObjectT*) CMALLOC(sizeof(JSONObjectObjectT));
     result->valueType = NODE_TYPE_OBJECT;
@@ -251,15 +446,20 @@ JSONObjectObjectElementT* json_parse_object_element(JSONParserT* parser)
     JSONObjectObjectElementT* object = NULL;
 
     json_buffer_skip_spaces(parser);
-    JSONStringT* key = json_parse_string(parser);
-    wprintf(L"Key \"%s\"\n", ((JSONStringT*) key)->value->data);
 
-    json_buffer_skip_spaces(parser);
-    if (json_get_current_token(parser) != UNICODE_TOKEN_COLON) { LOG_ERROR("Expected colon after key string!\n"); }
-    else { parser->offset += json_current_char_length(parser); }
+    JSONObjectT* key = json_parse_value(parser);
 
-    wprintf(L"Value:");
-    object = create_object_element(key, json_parse_value(parser));
+    if (key->valueType == NODE_TYPE_STRING)
+    {
+        json_buffer_skip_spaces(parser);
+
+        json_check_skip_colon(parser);
+
+        json_buffer_skip_spaces(parser);
+
+        object = json_create_json_object_element(key, json_parse_value(parser));
+    }
+    else { free_json_tree((JSONObjectT*) key); }
 
     return object;
 }
@@ -269,21 +469,18 @@ JSONObjectObjectT* json_parse_object(JSONParserT* parser)
     JSONObjectObjectT* result = NULL;
     json_move_to_next_char(parser);
 
-    UnicodeTokenT token = UNICODE_TOKEN_FALSE;
+    UnicodeTokenT token = UNICODE_TOKEN_ALL;
 
-    result = create_object();
+    result = json_create_json_object();
 
-    while (UNICODE_TOKEN_RIGHT_CURLY_BRACKET != token && UNICODE_TOKEN_NONE != token)
+    while (!json_is_object_end(parser))
     {
-        JSONObjectObjectElementT* object = json_parse_object_element(parser);
-        darr_push_generic(result->elements, &object);
+        darr_push_ptr(result->elements, json_parse_object_element(parser));
 
         json_buffer_skip_spaces(parser);
+        json_check_skip_comma(parser);
 
-        token = json_get_current_token(parser);
-        if (token == UNICODE_TOKEN_COMMA) { parser->offset += json_current_char_length(parser); }
         json_buffer_skip_spaces(parser);
-        token = json_get_current_token(parser);
     }
     json_move_to_next_char(parser);
 
@@ -374,6 +571,8 @@ inline static JSONParserResultT json_parse_file(const char* path, JSONParserT* p
         parser->offset = 0;
 
         parser->root = json_parse_value(parser);
+        if (parser->verboseOutput) { json_print_tree(parser->root, 0); }
+        if (parser->root) { result = JSON_PARSE_RESULT_OK; }
     }
     return result;
 }
