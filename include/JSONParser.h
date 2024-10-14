@@ -108,7 +108,6 @@ static void free_json_tree(JSONObjectT* node);
 /***********************************************************************************************************************
 Static function definitions
 ***********************************************************************************************************************/
-
 inline static JSONParserResultT json_parse_file(const char* path, JSONParserT* parser)
 {
     JSONParserResultT result = JSON_PARSE_RESULT_ERROR;
@@ -546,8 +545,5 @@ inline static void free_json_tree(JSONObjectT* node)
     }
 }
 
-/***********************************************************************************************************************
-Static functions implementation
-***********************************************************************************************************************/
 
 #endif// JSONPARSER_HEADER
